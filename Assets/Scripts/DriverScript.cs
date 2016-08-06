@@ -8,7 +8,11 @@ public class DriverScript : MonoBehaviour {
     public Font font;
     public Texture introImage;
     public Camera objCamera;
-    public Camera mainCamera;
+    public MainCharacter mainCharacter;
+    public AudioClip clickSound;
+
+    private AudioSource source;
+
 
     GameState currentState;
     GameState prevState;
@@ -21,9 +25,15 @@ public class DriverScript : MonoBehaviour {
         currentState = GameState.Logo;
         prevState = GameState.BlackScreen;
 
+        source = GetComponent<AudioSource>();
+
         PauseGame();
     }
 
+    void resetGame()
+    {
+        mainCharacter.reset();
+    }
     void PauseGame()
     {
         Time.timeScale = 0.0F;
@@ -36,23 +46,20 @@ public class DriverScript : MonoBehaviour {
 
     void SetState(GameState state)
     {
+        if (state == GameState.Pause && currentState != GameState.Play)
+            return;
+
         if(state == GameState.Play)
         {
             Cursor.lockState = CursorLockMode.Locked;
-            mainCamera.enabled = true;
-            objCamera.enabled = false;
             ResumeGame();
         } else
         {
             Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             PauseGame();
         }
 
-        if(state == GameState.MainMenu)
-        {
-            mainCamera.enabled = false;
-            objCamera.enabled = true;
-        }
         prevState = currentState;
         currentState = state;
         alpha = 0;
@@ -80,6 +87,11 @@ public class DriverScript : MonoBehaviour {
                 logoCounter = 0;
                 SetState(GameState.Intro);
             }
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            SetState(GameState.Pause);
         }
     }
 
@@ -115,6 +127,9 @@ public class DriverScript : MonoBehaviour {
                 else
                     prevState = GameState.NoState;
                 alpha = 0.0f;
+
+                if (currentState == GameState.MainMenu)
+                    resetGame();
             }
         } else{
             SetAlpha();
@@ -141,6 +156,11 @@ public class DriverScript : MonoBehaviour {
                 break;
             case GameState.Credits:
                 DrawCredits();
+                break;
+            case GameState.GameOver:
+            case GameState.Win:
+            case GameState.Pause:
+                DrawBoxMenu(state);
                 break;
         }
     }
@@ -176,13 +196,22 @@ public class DriverScript : MonoBehaviour {
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
         if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5, buttonWidth, buttonHeight), "Play", buttonStyle))
+        {
             SetState(GameState.Play);
+            source.PlayOneShot(clickSound);
+        }
         buttonWidth = fontSize * 9;
-        if ( GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Instructions", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Instructions", buttonStyle))
+        {
             SetState(GameState.Instructions);
+            source.PlayOneShot(clickSound);
+        }
         buttonWidth = fontSize * 5.5f;
         if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 1.6f, buttonWidth, buttonHeight), "Credits", buttonStyle))
+        {
             SetState(GameState.Credits);
+            source.PlayOneShot(clickSound);
+        }
     }
 
     void DrawInstructions()
@@ -211,7 +240,7 @@ public class DriverScript : MonoBehaviour {
         width = fontSize * 31;
         height = fontSize * 4.5f;
         textStyle.fontStyle = FontStyle.Bold;
-        DrawOutline(new Rect(Screen.width / 2 - width / 2, height * 1f, width, height), "Gather the escaped animals and put them back in the correct pens while remembering to fuel up at the charging station.", textStyle);
+        DrawOutline(new Rect(Screen.width / 2 - width / 2, height * 1f, width, height), "Gather the escaped animals and put them back in the correct pens and remember to fuel up at the charging station.", textStyle);
 
 
         height = fontSize * 1.5f;
@@ -229,6 +258,8 @@ public class DriverScript : MonoBehaviour {
         DrawOutline(new Rect(Screen.width / 2 - width / 2, height * 16.5f, width, height), "Right click = Toss (Hover Mode)", textStyle);
 
 
+        DrawOutline(new Rect(Screen.width / 2 - width / 2, height * 18.5f, width, height), "ESC = Pause", textStyle);
+
         fontSize = GetFontSize(30);
         GUIStyle buttonStyle = GUI.skin.GetStyle("Button");
         buttonStyle.fontSize = fontSize;
@@ -236,7 +267,10 @@ public class DriverScript : MonoBehaviour {
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
         if (GUI.Button(new Rect(buttonWidth / 2, Screen.height - buttonHeight * 1.2f, buttonWidth, buttonHeight), "Back", buttonStyle))
+        {
             SetState(GameState.MainMenu);
+            source.PlayOneShot(clickSound);
+        }
     }
 
     void DrawCredits()
@@ -288,8 +322,11 @@ public class DriverScript : MonoBehaviour {
         buttonStyle.font = font;
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
-        if (GUI.Button(new Rect( buttonWidth / 2, Screen.height - buttonHeight*1.2f, buttonWidth, buttonHeight), "Back", buttonStyle))
+        if (GUI.Button(new Rect(buttonWidth / 2, Screen.height - buttonHeight * 1.2f, buttonWidth, buttonHeight), "Back", buttonStyle))
+        {
             SetState(GameState.MainMenu);
+            source.PlayOneShot(clickSound);
+        }
     }
 
     void DrawLogo()
@@ -324,6 +361,75 @@ public class DriverScript : MonoBehaviour {
         DrawOutline(new Rect(Screen.width / 2 - width / 2, Screen.height / 2 + relativeHeight *1.5f, width, height), "Game Jam 2016", textStyle);
     }
 
+    void DrawBoxMenu(GameState state)
+    {
+        float boxWidth = Screen.width/1.5f;
+        float boxHeight = Screen.height/1.5f;
+
+        float startX = Screen.width / 2 - boxWidth / 2;
+        float startY = Screen.height / 2 - boxHeight / 2;
+
+
+
+        GUI.Box(new Rect(startX, startY, boxWidth, boxHeight), GUIContent.none);
+
+        GUIStyle textStyle = GUI.skin.GetStyle("Label");
+        textStyle.alignment = TextAnchor.MiddleCenter;
+        textStyle.normal.textColor = Color.white;
+        int fontSize = GetFontSize(50);
+        textStyle.fontSize = fontSize;
+        textStyle.font = font;
+
+        float width = fontSize * 12;
+        float height = fontSize * 2;
+
+        if (state == GameState.Pause)
+        {
+            DrawOutline(new Rect(Screen.width/2 - width/2, startY+ height/16, width , height) , "Pause", textStyle);
+        } else if (state == GameState.GameOver)
+        {
+            textStyle.normal.textColor = Color.red;
+            DrawOutline(new Rect(Screen.width / 2 - width / 2, startY + height / 16, width, height), "GameOver!", textStyle);
+        }
+        else if (state == GameState.Win)
+        {
+            textStyle.normal.textColor = Color.green;
+            DrawOutline(new Rect(Screen.width / 2 - width / 2, startY + height / 16, width, height), "You Win!", textStyle);
+        }
+
+
+        fontSize = GetFontSize(30);
+        GUIStyle buttonStyle = GUI.skin.GetStyle("Button");
+        buttonStyle.fontSize = fontSize;
+        buttonStyle.font = font;
+        float buttonWidth = fontSize * 4.7f;
+        float buttonHeight = fontSize * 1.5f;
+
+
+        if (state == GameState.Pause)
+        {
+            if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 7, buttonWidth, buttonHeight), "Resume", buttonStyle))
+            {
+                SetState(GameState.Play);
+                source.PlayOneShot(clickSound);
+            }
+        }
+        buttonWidth = fontSize * 6.5f;
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5.5f, buttonWidth, buttonHeight), "New Game", buttonStyle))
+        {
+            source.PlayOneShot(clickSound);
+            SetState(GameState.Play);
+            resetGame();
+        }
+        buttonWidth = fontSize * 7f;
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 4f, buttonWidth, buttonHeight), "Main Menu", buttonStyle))
+        {
+            source.PlayOneShot(clickSound);
+            SetState(GameState.MainMenu);
+        }
+
+    }
+
     void DrawIntro()
     {
         DrawBlackBackGround();
@@ -345,7 +451,7 @@ public class DriverScript : MonoBehaviour {
          float height = screenHeight/2.2f;
          float relativeHeight = Screen.height / 15;
          textStyle.fontStyle = FontStyle.Bold;
-         DrawOutline(new Rect(gap, screenHeight / 1.7f , screenWidth - gap * 2, height), "Meet our hero, Gusto! He loves his job at the zoo managing the chill chamber and keeping his animal friends cool when it’s too hot outside. They love him, too, and always invite him to play when he comes to work.\n\nToday is the hottest day of summer and the chill chamber is thawing out too quickly. All the animals have broken free and are in danger of overheating!\nGusto is always eager to help but sometimes forgets to take care of himself, too. His battery has almost run dry and he needs to recharge after a scorching summer.\n\nCan you help Gusto balance helping his friends while taking care of himself so he can keep his cool?", textStyle);
+         DrawOutline(new Rect(gap, screenHeight / 1.8f , screenWidth - gap * 2, height), "Meet our hero, Gusto! He loves his job at the zoo managing the chill chamber and keeping his animal friends cool when it’s too hot outside. They love him, too, and always invite him to play when he comes to work.\n\nToday is the hottest day of summer and the chill chamber is thawing out too quickly. All the animals have broken free and are in danger of overheating!\nGusto is always eager to help but sometimes forgets to take care of himself, too. His battery has almost run dry and he needs to recharge after a scorching summer.\n\nCan you help Gusto balance helping his friends while taking care of himself so he can keep his cool?", textStyle);
 
          GUIStyle buttonStyle = GUI.skin.GetStyle("Button");
         fontSize = GetFontSize(22);
@@ -356,7 +462,10 @@ public class DriverScript : MonoBehaviour {
         bool clicked = GUI.Button(new Rect(screenWidth - buttonWidth* 1.2f, screenHeight - buttonHeight* 1.3f, buttonWidth, buttonHeight), "Next", buttonStyle);
 
         if (clicked)
+        {
+            source.PlayOneShot(clickSound);
             SetState(GameState.MainMenu);
+        }
 
     }
 
@@ -392,9 +501,11 @@ public class DriverScript : MonoBehaviour {
         Texture2D texture = new Texture2D(1, 1);
         texture.SetPixel(0, 0, color);
         texture.Apply();
+        Texture2D savedSkin = GUI.skin.box.normal.background;
         GUI.skin.box.normal.background = texture;
         GUI.Box(position, GUIContent.none);
-    }
+        GUI.skin.box.normal.background = savedSkin;
+     }
 
     int GetFontSize(float size)
     {

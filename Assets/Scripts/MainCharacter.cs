@@ -22,6 +22,8 @@ public class MainCharacter : MonoBehaviour {
     float flipAngleRate = 150f;
     ParticleSystem particleWind;
 
+    Vector3 initialPosition;
+    Quaternion initialRotation;
     Vector3 initialScale;
 
     int forwardMovement = 0;
@@ -46,11 +48,48 @@ public class MainCharacter : MonoBehaviour {
     float jumpCounter = 0f;
 	// Use this for initialization
 	void Start () {
-        initialScale = GetComponent<Rigidbody>().transform.localScale; 
+        initialPosition = transform.position;
+        initialRotation = transform.rotation;
+        initialScale = transform.localScale; 
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    public void reset()
+    {
+        floatingCycleAngle = 0f;
+        flippedMode = false;
+        flipping = false;
+        flipY = 0;
+        spaceHeld = false;
+        jumpCounter = 0f;
+
+        floatingY = 0f;
+
+        cameraRotationX = 0;
+        cameraRotationY = 15;
+
+        landStretchVelocity = 0f;
+        landStretchState = 0;
+        shouldJumpAfterLandStrecth = false;
+
+        if (particleWind != null)
+        {
+           Destroy(particleWind.gameObject);
+           particleWind = null;
+        }
+
+        transform.position = initialPosition;
+        transform.rotation = initialRotation;
+        transform.localScale = initialScale;
+        currentFloor = null;
+
+
+         forwardMovement = 0;
+         sideMovement = 0;
+
+    }
+
+    // Update is called once per frame
+    void Update () {
         if (Time.timeScale == 0) return;
 
         float t = Time.deltaTime;
