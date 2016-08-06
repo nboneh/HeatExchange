@@ -3,7 +3,7 @@ using System.Collections;
 
 public class CameraScript : MonoBehaviour {
 
-    public GameObject followObject;
+    public MainCharacter character;
 	// Use this for initialization
 	void Start () {
 	
@@ -11,10 +11,13 @@ public class CameraScript : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-        //float followObjectX = followObject.transform.position.x;
-        //float followObjectY = followObject.transform.position.y;
-        //float followObjectZ = followObject.transform.position.z; 
+ 
+
+        //transform.position = character.transform.position;
+        //transform.Translate( -10 * transform.forward);
 
         //transform.LookAt(followObject.transform);
+
+
     }
 }
