@@ -51,10 +51,12 @@ public class MainCharacter : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
+        if (Time.timeScale == 0) return;
+
         float t = Time.deltaTime;
         if (flipping)
         {
-            flip(t);
+            Flip(t);
             return;
         }
         CheckFlip();
@@ -75,7 +77,7 @@ public class MainCharacter : MonoBehaviour {
         }
     }
 
-    void flip(float t)
+    void Flip(float t)
     {
         flipAngle += t * flipAngleRate;
 
@@ -329,7 +331,6 @@ public class MainCharacter : MonoBehaviour {
 
     void UpdateCamera(float t)
     {
-
         cameraRotationX += Input.GetAxis("Mouse X") * 3.0f;
          cameraRotationY -= Input.GetAxis("Mouse Y");
 
