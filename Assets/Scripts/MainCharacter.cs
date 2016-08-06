@@ -5,6 +5,7 @@ public class MainCharacter : MonoBehaviour {
 
     public Collider floatColider;
     public Camera followCamera;
+    public ParticleSystem wind;
     float moveSpeed = 2;
     float floatingCycleAngle = 0f;
     float floatingHeight = .7f;
@@ -17,7 +18,9 @@ public class MainCharacter : MonoBehaviour {
     bool shouldJumpAfterLandStrecth = false;
     float jumpVel;
 
-
+    float flipAngle = 0;
+    float flipAngleRate = 150f;
+    ParticleSystem particleWind;
 
     Vector3 initialScale;
 
@@ -33,9 +36,12 @@ public class MainCharacter : MonoBehaviour {
     float cameraRotationX = 0;
     float cameraRotationY = 15;
 
+
     Collider currentFloor = null;
    
     bool flippedMode = false;
+    bool flipping = false;
+    float flipY = 0;
     bool spaceHeld = false;
     float jumpCounter = 0f;
 	// Use this for initialization
@@ -46,16 +52,66 @@ public class MainCharacter : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         float t = Time.deltaTime;
+        if (flipping)
+        {
+            flip(t);
+            return;
+        }
+        CheckFlip();
         Float(t);
         Movement(t);
         updateLandStretch(t);
         JumpInput(t);
         UpdateCamera(t);
+
+        if(particleWind != null)
+        {
+      
+            particleWind.transform.position = new Vector3(transform.position.x, transform.position.y - .5f, transform.position.z);
+            if(currentFloor != null) { 
+                Destroy(particleWind.gameObject);
+                particleWind = null;
+            }
+        }
     }
 
+    void flip(float t)
+    {
+        flipAngle += t * flipAngleRate;
+
+        if (flippedMode == true && flipAngle >= 180)
+        {
+            flipAngle = 180;
+            flipping = false;
+        }
+
+        else if (flippedMode == false && flipAngle >= 360)
+        {
+            flipAngle = 0;
+            flipping = false;
+        }
+
+        transform.rotation = Quaternion.Euler(new Vector3(transform.rotation.eulerAngles.x, transform.rotation.eulerAngles.y, flipAngle));
+        transform.position = new Vector3(transform.position.x, flipY, transform.position.z);
+        Rigidbody rb = GetComponent<Rigidbody>();
+        rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
+    }
+
+    void CheckFlip()
+    {
+        if(currentFloor != null && landStretchState == 0)
+        {
+            if (Input.GetKeyDown("tab"))
+            {
+                flipping = true;
+                flippedMode = !flippedMode;
+                flipY = transform.position.y;
+            }
+        }
+    }
     void JumpInput(float t)
     {
-        if (currentFloor != null)
+        if (currentFloor != null && landStretchState == 0)
         {
             if (Input.GetKeyDown("space")){
                 spaceHeld = true;
@@ -71,7 +127,15 @@ public class MainCharacter : MonoBehaviour {
                      jumpCounter = .2f;
                 spaceHeld = false;
                 shouldJumpAfterLandStrecth = true;
-                jumpVel = jumpCounter * 15 + 2.2f;
+
+                if (flippedMode)
+                {
+                    jumpVel = jumpCounter * 20 + 4f;
+                }
+                else
+                {
+                    jumpVel = jumpCounter * 15 + 2.2f;
+                }
                 setLandStretch(jumpVel); 
             }
         }
@@ -79,8 +143,10 @@ public class MainCharacter : MonoBehaviour {
 
     void Jump()
     {
-       currentFloor = null;
-       Rigidbody rb = GetComponent<Rigidbody>();
+        currentFloor = null;
+        if(flippedMode)
+            particleWind = (ParticleSystem)Instantiate(wind, new Vector3(transform.position.x, transform.position.y - .5f, transform.position.z), Quaternion.Euler(new Vector3(transform.rotation.eulerAngles.x + 90, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z)));
+        Rigidbody rb = GetComponent<Rigidbody>();
        rb.velocity = new Vector3(rb.velocity.x, jumpVel, rb.velocity.z);
     }
  
@@ -230,8 +296,8 @@ public class MainCharacter : MonoBehaviour {
 
     void Float(float t)
     {
-         if (currentFloor != null)
-         {
+        if (currentFloor != null)
+        {
             float maxHeight = 25;
             Rigidbody rb = GetComponent<Rigidbody>();
             float x = rb.position.x;
@@ -240,9 +306,10 @@ public class MainCharacter : MonoBehaviour {
             Ray ray = new Ray(new Vector3(x, maxHeight, z), Vector3.down);
 
             floatingCycleAngle += t * 90;
+            float lastFloatingY = floatingY;
             floatingY = Mathf.Sin(floatingCycleAngle * (Mathf.PI / 180.0f) * 2) * .07f;
             float floatingRoll = Mathf.Sin(floatingCycleAngle * (Mathf.PI / 180.0f)) * 5;
-            float floatingYaw = Mathf.Sin(floatingCycleAngle * (Mathf.PI / 180.0f) * 2) * 2;
+            float floatingYaw = Mathf.Sin(floatingCycleAngle * (Mathf.PI / 180.0f) * 3) * 2;
             if (floatingCycleAngle > 360)
             {
                 floatingCycleAngle = floatingCycleAngle % 360;
@@ -250,13 +317,14 @@ public class MainCharacter : MonoBehaviour {
 
             if (currentFloor.Raycast(ray, out hit, 2.0f * maxHeight))
             {
-                transform.position = new Vector3(x, hit.point.y+ floatingHeight + floatingY, z);
+                transform.position = new Vector3(x, hit.point.y + floatingHeight + floatingY, z);
                 if (momentumAngle < .01f)
                     transform.rotation = Quaternion.Euler(new Vector3(floatingRoll, transform.rotation.eulerAngles.y, floatingYaw));
                 rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
-            } 
-        } 
+            }
+        }
         Stretch(GetComponent<Rigidbody>().velocity.y);
+      
     }
 
     void UpdateCamera(float t)
@@ -314,6 +382,7 @@ public class MainCharacter : MonoBehaviour {
                 if (shouldJumpAfterLandStrecth)
                 {
                     shouldJumpAfterLandStrecth = false;
+             
                     Jump();
                     landStretchVelocity = 0;
                     landStretchState = 0;
