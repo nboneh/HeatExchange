@@ -6,11 +6,15 @@ public class Float : MonoBehaviour
 
     float floatingCycleAngle = 0;
     float y = 0;
+    float angz = 0;
+    float angx = 0;
 
     // Use this for initialization
     void Start()
     {
         y = transform.position.y;
+        angz = transform.rotation.eulerAngles.z;
+        angx = transform.rotation.eulerAngles.x;
     }
 
     // Update is called once per frame
@@ -31,6 +35,6 @@ public class Float : MonoBehaviour
             floatingCycleAngle = floatingCycleAngle % 360;
         }
         transform.position = new Vector3(transform.position.x, y + floatingY, transform.position.z);
-        transform.rotation = Quaternion.Euler(new Vector3(floatingRoll, transform.rotation.eulerAngles.y, floatingYaw));
+        transform.rotation = Quaternion.Euler(new Vector3(angx +floatingRoll, transform.rotation.eulerAngles.y, angz +floatingYaw));
     }
 }

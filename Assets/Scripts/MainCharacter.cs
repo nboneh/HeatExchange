@@ -6,9 +6,10 @@ public class MainCharacter : MonoBehaviour {
     public Collider floatColider;
     public Camera followCamera;
     public ParticleSystem wind;
-    float moveSpeed = 2;
+    public ParticleSystem lightning;
+    float moveSpeed = 5;
     float floatingCycleAngle = 0f;
-    float floatingHeight = .7f;
+    float floatingHeight = 1f;
     float floatingY = 0f;
 
     float landStretchMaxVelocity = 0f;
@@ -21,6 +22,7 @@ public class MainCharacter : MonoBehaviour {
     float flipAngle = 0;
     float flipAngleRate = 150f;
     ParticleSystem particleWind;
+    ParticleSystem particleLightning;
 
     Vector3 initialPosition;
     Quaternion initialRotation;
@@ -45,16 +47,42 @@ public class MainCharacter : MonoBehaviour {
     bool flipping = false;
     float flipY = 0;
     bool spaceHeld = false;
+    bool dead = false;
     float jumpCounter = 0f;
-	// Use this for initialization
-	void Start () {
+    float maxBatteryPower = 30f;
+    float batteryPower = 0f;
+
+    float batteryDrainedCounter = 0f;
+    float batteryDrainedCounterMax = 2f;
+
+    public AudioClip highJumpSound;
+    public AudioClip lowJumpSound;
+    public AudioClip transformSound;
+    public AudioClip landSound;
+    public AudioClip shortOutSound;
+
+    public AudioSource source;
+    public AudioSource chargingSound;
+
+    public Fan fan;
+    public Animator animator;
+
+    bool charging = false;
+
+    GameObject animalThatCanBePickedUp = null;
+
+    // Use this for initialization
+    void Start () {
         initialPosition = transform.position;
         initialRotation = transform.rotation;
-        initialScale = transform.localScale; 
+        initialScale = transform.localScale;
+        batteryPower = maxBatteryPower;
     }
 
     public void reset()
     {
+        animalThatCanBePickedUp = null;
+        batteryPower = maxBatteryPower;
         floatingCycleAngle = 0f;
         flippedMode = false;
         flipping = false;
@@ -63,6 +91,8 @@ public class MainCharacter : MonoBehaviour {
         jumpCounter = 0f;
 
         floatingY = 0f;
+
+        flipAngle = 0;
 
         cameraRotationX = 0;
         cameraRotationY = 15;
@@ -77,6 +107,12 @@ public class MainCharacter : MonoBehaviour {
            particleWind = null;
         }
 
+        if(particleLightning != null)
+        {
+            Destroy(particleLightning.gameObject);
+            particleLightning = null;
+        }
+
         transform.position = initialPosition;
         transform.rotation = initialRotation;
         transform.localScale = initialScale;
@@ -85,14 +121,85 @@ public class MainCharacter : MonoBehaviour {
 
          forwardMovement = 0;
          sideMovement = 0;
+        momentumAngle = 0;
+        dead = false;
+
+        batteryDrainedCounter = 0f;
+
+        GetComponent<Rigidbody>().freezeRotation = true;
+
+        GetComponent<Rigidbody>().velocity = new Vector3(0, 0, 0);
+
+        charging = false;
+
+        animator.enabled = true;
+
+        fan.StartFan();
 
     }
 
+    public bool IsDead()
+    {
+        return dead;
+    }
+
+    public float GetMaxBatteryPower()
+    {
+        return maxBatteryPower;
+    }
+    public float GetBatteryPower()
+    {
+        return batteryPower;
+    }
+
+    public bool IsCharging()
+    {
+        return charging;
+    }
+
     // Update is called once per frame
-    void Update () {
+    void Update() {
         if (Time.timeScale == 0) return;
 
+        if (transform.position.y < -2)
+            dead = true;
         float t = Time.deltaTime;
+
+        if (batteryPower > 0)
+        {
+            if (charging)
+            {
+                batteryPower += t*5;
+                if(batteryPower >= maxBatteryPower)
+                {
+                    batteryPower = maxBatteryPower;
+                }
+            }
+            else
+            {
+                batteryPower -= t;
+                if (batteryPower <= 0)
+                {
+                    source.PlayOneShot(shortOutSound);
+                    batteryPower = 0;
+                    GetComponent<Rigidbody>().freezeRotation = false;
+                }
+            }
+        }
+        else
+        {
+            fan.StopFan();
+            animator.enabled = false;
+            batteryDrainedCounter += t;
+            if (batteryDrainedCounter >= batteryDrainedCounterMax)
+                dead = true;
+            return;
+        }
+
+
+        GetComponent<Rigidbody>().velocity = new Vector3(0, GetComponent<Rigidbody>().velocity.y, 0);
+
+
         if (flipping)
         {
             Flip(t);
@@ -101,7 +208,7 @@ public class MainCharacter : MonoBehaviour {
         CheckFlip();
         Float(t);
         Movement(t);
-        updateLandStretch(t);
+        UpdateLandStretch(t);
         JumpInput(t);
         UpdateCamera(t);
 
@@ -113,6 +220,11 @@ public class MainCharacter : MonoBehaviour {
                 Destroy(particleWind.gameObject);
                 particleWind = null;
             }
+        }
+
+        if (particleLightning != null)
+        {
+            particleLightning.transform.position = new Vector3(transform.position.x, transform.position.y - 1f, transform.position.z);
         }
     }
 
@@ -140,11 +252,12 @@ public class MainCharacter : MonoBehaviour {
 
     void CheckFlip()
     {
-        if(currentFloor != null && landStretchState == 0)
+        if(currentFloor != null && landStretchState == 0 && flipping == false)
         {
             if (Input.GetKeyDown("tab"))
             {
                 flipping = true;
+                source.PlayOneShot(transformSound);
                 flippedMode = !flippedMode;
                 flipY = transform.position.y;
             }
@@ -171,13 +284,13 @@ public class MainCharacter : MonoBehaviour {
 
                 if (flippedMode)
                 {
-                    jumpVel = jumpCounter * 20 + 4f;
+                    jumpVel = jumpCounter * 23 + 5f;
                 }
                 else
                 {
                     jumpVel = jumpCounter * 15 + 2.2f;
                 }
-                setLandStretch(jumpVel); 
+                SetLandStretch(jumpVel); 
             }
         }
     }
@@ -185,8 +298,14 @@ public class MainCharacter : MonoBehaviour {
     void Jump()
     {
         currentFloor = null;
-        if(flippedMode)
-            particleWind = (ParticleSystem)Instantiate(wind, new Vector3(transform.position.x, transform.position.y - .5f, transform.position.z), Quaternion.Euler(new Vector3(transform.rotation.eulerAngles.x + 90, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z)));
+        if (flippedMode)
+        {
+            particleWind = (ParticleSystem)Instantiate(wind, new Vector3(transform.position.x, transform.position.y - .5f, transform.position.z), Quaternion.Euler(new Vector3( 90, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z)));
+            source.PlayOneShot(highJumpSound);
+        } else
+        {
+            source.PlayOneShot(lowJumpSound);
+        }
         Rigidbody rb = GetComponent<Rigidbody>();
        rb.velocity = new Vector3(rb.velocity.x, jumpVel, rb.velocity.z);
     }
@@ -360,7 +479,7 @@ public class MainCharacter : MonoBehaviour {
             {
                 transform.position = new Vector3(x, hit.point.y + floatingHeight + floatingY, z);
                 if (momentumAngle < .01f)
-                    transform.rotation = Quaternion.Euler(new Vector3(floatingRoll, transform.rotation.eulerAngles.y, floatingYaw));
+                    transform.rotation = Quaternion.Euler(new Vector3(floatingRoll, transform.rotation.eulerAngles.y, flipAngle + floatingYaw));
                 rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
             }
         }
@@ -373,10 +492,19 @@ public class MainCharacter : MonoBehaviour {
         cameraRotationX += Input.GetAxis("Mouse X") * 3.0f;
          cameraRotationY -= Input.GetAxis("Mouse Y");
 
+        Debug.Log("X: " + cameraRotationX);
+
         if (cameraRotationY <= minimumCameraY)
             cameraRotationY = minimumCameraY;
         else if (cameraRotationY >= maximumCameraY)
             cameraRotationY = maximumCameraY;
+
+        cameraRotationX = cameraRotationX % 360;
+
+        if(cameraRotationX > 90  && cameraRotationX < 180)
+        {
+            cameraRotationX += 180;
+        }
 
         followCamera.transform.rotation = Quaternion.Euler(new Vector3(cameraRotationY, cameraRotationX, followCamera.transform.rotation.eulerAngles.z));
 
@@ -392,24 +520,49 @@ public class MainCharacter : MonoBehaviour {
 
     void OnTriggerEnter(Collider other)
     {
-        currentFloor = other;
-        jumpCounter = 0;
-        setLandStretch(-GetComponent<Rigidbody>().velocity.y);
+        if (other.gameObject.tag == "Floor" )
+        {
+            currentFloor = other;
+            jumpCounter = 0;
+            float volume = -GetComponent<Rigidbody>().velocity.y / 9;
+
+            source.PlayOneShot(landSound, volume);
+            SetLandStretch(-GetComponent<Rigidbody>().velocity.y);
+        }
+
+        if (other.gameObject.tag == "ReactorCharger")
+        {
+            charging = true;
+            particleLightning = (ParticleSystem)Instantiate(lightning, new Vector3(transform.position.x, transform.position.y + 1f, transform.position.z), Quaternion.Euler(new Vector3( 270, transform.rotation.eulerAngles.y, transform.rotation.eulerAngles.z)));
+            chargingSound.Play();
+        }
     }
 
     void OnTriggerExit(Collider other)
     {
-        currentFloor = null;
+        if (currentFloor == other)
+            currentFloor = null;
+
+        if (other.gameObject.tag == "ReactorCharger")
+        {
+            charging = false;
+            if (particleLightning != null)
+            {
+                Destroy(particleLightning.gameObject);
+                particleLightning = null;
+            }
+            chargingSound.Stop();
+        }
     }
 
-    void setLandStretch(float velocity)
+    void SetLandStretch(float velocity)
     {
 
         landStretchState = 1;
         landStretchMaxVelocity = velocity;
     }
 
-    void updateLandStretch(float t)
+    void UpdateLandStretch(float t)
     {
         if (landStretchState == 1)
         {
@@ -451,6 +604,20 @@ public class MainCharacter : MonoBehaviour {
         GetComponent<Rigidbody>().transform.localScale = new Vector3(initialScale.x + stretch / 2, initialScale.y - stretch, initialScale.z + stretch / 2);
     }
 
+    void SetCanPickUpAnimal(GameObject animal)
+    {
+        if (animalThatCanBePickedUp != null)
+            return;
+        animalThatCanBePickedUp = animal;
+    }
+
+    void SetCannotPickUpAnimal(GameObject animal)
+    {
+        if (animalThatCanBePickedUp == animal)
+        {
+            animalThatCanBePickedUp = null;
+        }
+    }
    
     void OnColisionEnter(Collision Col)
     {

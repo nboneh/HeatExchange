@@ -7,12 +7,26 @@ public class DriverScript : MonoBehaviour {
     float alpha = 0.0f;
     public Font font;
     public Texture introImage;
+
+    public Texture fullBattery;
+    public Texture highBattery;
+    public Texture midBattery;
+    public Texture lowBattery;
+    public Texture emptyBattery;
+    public Texture chargingBattery;
+
     public Camera objCamera;
     public MainCharacter mainCharacter;
     public AudioClip clickSound;
+    public AudioClip gameOverSound;
+    public AudioClip pauseSound;
+    public AudioClip unPauseSound;
+    public AudioClip fanSound;
+    public AudioClip winSound;
 
-    private AudioSource source;
-
+    public AudioSource source;
+    public AudioSource gameSoundTrack;
+    public AudioSource mainMenuSoundTrack;
 
     GameState currentState;
     GameState prevState;
@@ -22,15 +36,14 @@ public class DriverScript : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-        currentState = GameState.Logo;
+        currentState = GameState.MainMenu;
         prevState = GameState.BlackScreen;
 
-        source = GetComponent<AudioSource>();
-
+        source.PlayOneShot(fanSound);
         PauseGame();
     }
 
-    void resetGame()
+    void ResetGame()
     {
         mainCharacter.reset();
     }
@@ -49,12 +62,36 @@ public class DriverScript : MonoBehaviour {
         if (state == GameState.Pause && currentState != GameState.Play)
             return;
 
+        if(state == GameState.GameOver)
+        {
+            source.PlayOneShot(gameOverSound);
+        }
+
+        if(state == GameState.Win)
+        {
+            source.PlayOneShot(winSound);
+        }
+
+        if(state == GameState.MainMenu)
+        {
+            gameSoundTrack.Stop();
+            if(!mainMenuSoundTrack.isPlaying)
+                 mainMenuSoundTrack.Play();
+        }
+        if(state == GameState.Intro)
+        {
+            mainMenuSoundTrack.Play();
+        }
+
         if(state == GameState.Play)
         {
+            gameSoundTrack.Play();
+            mainMenuSoundTrack.Stop();
             Cursor.lockState = CursorLockMode.Locked;
             ResumeGame();
         } else
         {
+            gameSoundTrack.Pause();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             PauseGame();
@@ -92,6 +129,12 @@ public class DriverScript : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             SetState(GameState.Pause);
+            source.PlayOneShot(pauseSound);
+        }
+
+        else if (mainCharacter.IsDead() && currentState == GameState.Play)
+        {
+            SetState(GameState.GameOver);
         }
     }
 
@@ -129,7 +172,7 @@ public class DriverScript : MonoBehaviour {
                 alpha = 0.0f;
 
                 if (currentState == GameState.MainMenu)
-                    resetGame();
+                    ResetGame();
             }
         } else{
             SetAlpha();
@@ -157,9 +200,18 @@ public class DriverScript : MonoBehaviour {
             case GameState.Credits:
                 DrawCredits();
                 break;
+            case GameState.Play:
+                GUI.color = Color.white;
+                DrawPlay();
+                break;
+            case GameState.Pause:
+                DrawBoxMenu(state);
+                GUI.color = Color.white;
+                DrawPlay();
+                break;
+
             case GameState.GameOver:
             case GameState.Win:
-            case GameState.Pause:
                 DrawBoxMenu(state);
                 break;
         }
@@ -195,19 +247,19 @@ public class DriverScript : MonoBehaviour {
         buttonStyle.font = font;
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5, buttonWidth, buttonHeight), "Play", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5, buttonWidth, buttonHeight), "Play", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Play);
             source.PlayOneShot(clickSound);
         }
         buttonWidth = fontSize * 9;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Instructions", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Instructions", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Instructions);
             source.PlayOneShot(clickSound);
         }
         buttonWidth = fontSize * 5.5f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 1.6f, buttonWidth, buttonHeight), "Credits", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 1.6f, buttonWidth, buttonHeight), "Credits", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Credits);
             source.PlayOneShot(clickSound);
@@ -266,7 +318,7 @@ public class DriverScript : MonoBehaviour {
         buttonStyle.font = font;
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
-        if (GUI.Button(new Rect(buttonWidth / 2, Screen.height - buttonHeight * 1.2f, buttonWidth, buttonHeight), "Back", buttonStyle))
+        if (GUI.Button(new Rect(buttonWidth / 2, Screen.height - buttonHeight * 1.2f, buttonWidth, buttonHeight), "Back", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.MainMenu);
             source.PlayOneShot(clickSound);
@@ -408,21 +460,21 @@ public class DriverScript : MonoBehaviour {
 
         if (state == GameState.Pause)
         {
-            if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 7, buttonWidth, buttonHeight), "Resume", buttonStyle))
+            if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 7, buttonWidth, buttonHeight), "Resume", buttonStyle) && alpha >= 1.0f)
             {
                 SetState(GameState.Play);
-                source.PlayOneShot(clickSound);
+                source.PlayOneShot(unPauseSound);
             }
         }
         buttonWidth = fontSize * 6.5f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5.5f, buttonWidth, buttonHeight), "New Game", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5.5f, buttonWidth, buttonHeight), "New Game", buttonStyle) && alpha >= 1.0f)
         {
             source.PlayOneShot(clickSound);
             SetState(GameState.Play);
-            resetGame();
+            ResetGame();
         }
         buttonWidth = fontSize * 7f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 4f, buttonWidth, buttonHeight), "Main Menu", buttonStyle))
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 4f, buttonWidth, buttonHeight), "Main Menu", buttonStyle) && alpha >= 1.0f)
         {
             source.PlayOneShot(clickSound);
             SetState(GameState.MainMenu);
@@ -461,7 +513,7 @@ public class DriverScript : MonoBehaviour {
         float buttonHeight = fontSize * 1.5f;
         bool clicked = GUI.Button(new Rect(screenWidth - buttonWidth* 1.2f, screenHeight - buttonHeight* 1.3f, buttonWidth, buttonHeight), "Next", buttonStyle);
 
-        if (clicked)
+        if (clicked && alpha >= 1.0f)
         {
             source.PlayOneShot(clickSound);
             SetState(GameState.MainMenu);
@@ -490,7 +542,75 @@ public class DriverScript : MonoBehaviour {
         style = backupStyle;
     }
 
- 
+    void DrawPlay()
+    {
+            float battery = mainCharacter.GetBatteryPower();
+            float maxBattery = mainCharacter.GetMaxBatteryPower();
+
+            float batteryCharged = battery / maxBattery;
+
+
+            Color color;
+
+            Texture batteryImage;
+            if (batteryCharged > .7f)
+            {
+                color = Color.green;
+                batteryImage = fullBattery;
+            }
+            else if (batteryCharged > .3f)
+            {
+                color = Color.yellow;
+                batteryImage = highBattery;
+            }
+            else if (batteryCharged > .15f)
+            {
+                //orange
+                color = new Color(1, .54f, 0f);
+                batteryImage = midBattery;
+            }
+            else if (batteryCharged > .02f)
+            {
+                color = Color.red;
+                batteryImage = lowBattery;
+            }
+            else
+            {
+                color = new Color(1, 1, 1, 0);
+                batteryImage = emptyBattery;
+            }
+        if (mainCharacter.IsCharging())
+        {
+            batteryImage = chargingBattery;
+        }
+
+        float maxWidth = Screen.width / 3;
+
+        float width = maxWidth * 1.2f;
+        float height = Screen.height / 10;
+        float x = Screen.width * .59f;
+        float y = height/4;
+        GUI.Box(new Rect(x, y, width, height), "");
+
+         width = maxWidth * batteryCharged;
+         height = Screen.height/20;
+         x = Screen.width * .6f + (maxWidth - width);
+         y = height;
+
+
+         DrawQuad(new Rect(x,y ,width, height), color);
+
+        height = Screen.height / 10;
+        width = maxWidth / 10;
+        x = Screen.width * .61f + maxWidth;
+        y = height/ 4;
+
+        GUI.DrawTexture(new Rect(x, y, width, height), batteryImage, ScaleMode.StretchToFill, true, 10.0F);
+
+
+
+    }
+
     void DrawBlackBackGround()
     {
         DrawQuad(new Rect(0, 0, Screen.width, Screen.height), Color.black);
