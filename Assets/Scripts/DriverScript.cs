@@ -14,6 +14,7 @@ public class DriverScript : MonoBehaviour {
     public Texture lowBattery;
     public Texture emptyBattery;
     public Texture chargingBattery;
+    public Texture narwhal;
 
     public Camera objCamera;
     public MainCharacter mainCharacter;
@@ -28,6 +29,9 @@ public class DriverScript : MonoBehaviour {
     public AudioSource gameSoundTrack;
     public AudioSource mainMenuSoundTrack;
 
+    public Animal[] animals;
+    public Pan pan;
+
     GameState currentState;
     GameState prevState;
 
@@ -36,7 +40,7 @@ public class DriverScript : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-        currentState = GameState.MainMenu;
+        currentState = GameState.Logo;
         prevState = GameState.BlackScreen;
 
         source.PlayOneShot(fanSound);
@@ -45,8 +49,15 @@ public class DriverScript : MonoBehaviour {
 
     void ResetGame()
     {
-        mainCharacter.reset();
+        mainCharacter.Reset();
+        foreach (Animal animal in animals)
+        {
+            animal.Reset();
+        }
+        pan.Reset();
+
     }
+
     void PauseGame()
     {
         Time.timeScale = 0.0F;
@@ -59,9 +70,6 @@ public class DriverScript : MonoBehaviour {
 
     void SetState(GameState state)
     {
-        if (state == GameState.Pause && currentState != GameState.Play)
-            return;
-
         if(state == GameState.GameOver)
         {
             source.PlayOneShot(gameOverSound);
@@ -126,15 +134,20 @@ public class DriverScript : MonoBehaviour {
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Input.GetKeyDown(KeyCode.Escape) && currentState == GameState.Play)
         {
             SetState(GameState.Pause);
             source.PlayOneShot(pauseSound);
-        }
+        } 
 
         else if (mainCharacter.IsDead() && currentState == GameState.Play)
         {
             SetState(GameState.GameOver);
+        }
+
+        else if (pan.GetNumOfAnimals() >= animals.Length  && currentState == GameState.Play)
+        {
+            SetState(GameState.Win);
         }
     }
 
@@ -247,22 +260,29 @@ public class DriverScript : MonoBehaviour {
         buttonStyle.font = font;
         float buttonWidth = fontSize * 3.7f;
         float buttonHeight = fontSize * 1.5f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5, buttonWidth, buttonHeight), "Play", buttonStyle) && alpha >= 1.0f)
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 6.7f, buttonWidth, buttonHeight), "Play", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Play);
             source.PlayOneShot(clickSound);
         }
         buttonWidth = fontSize * 9;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Instructions", buttonStyle) && alpha >= 1.0f)
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 5f, buttonWidth, buttonHeight), "Instructions", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Instructions);
             source.PlayOneShot(clickSound);
         }
         buttonWidth = fontSize * 5.5f;
-        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 1.6f, buttonWidth, buttonHeight), "Credits", buttonStyle) && alpha >= 1.0f)
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 3.3f, buttonWidth, buttonHeight), "Credits", buttonStyle) && alpha >= 1.0f)
         {
             SetState(GameState.Credits);
             source.PlayOneShot(clickSound);
+        }
+
+        buttonWidth = fontSize * 3.7f;
+        if (GUI.Button(new Rect(Screen.width / 2 - buttonWidth / 2, Screen.height - buttonHeight * 1.6f, buttonWidth, buttonHeight), "Quit", buttonStyle) && alpha >= 1.0f)
+        {
+            source.PlayOneShot(clickSound);
+            Application.Quit();
         }
     }
 
@@ -544,6 +564,8 @@ public class DriverScript : MonoBehaviour {
 
     void DrawPlay()
     {
+
+        //Battery
             float battery = mainCharacter.GetBatteryPower();
             float maxBattery = mainCharacter.GetMaxBatteryPower();
 
@@ -606,6 +628,31 @@ public class DriverScript : MonoBehaviour {
         y = height/ 4;
 
         GUI.DrawTexture(new Rect(x, y, width, height), batteryImage, ScaleMode.StretchToFill, true, 10.0F);
+
+
+        //Animal Counter
+        string message = pan.GetNumOfAnimals() + "/" + animals.Length;
+
+
+         width = Screen.width/6;
+         height = Screen.height / 10;
+         x = width / 4;
+        y = height / 4;
+        GUI.Box(new Rect(x, y, width, height), "");
+
+
+        GUIStyle textStyle = GUI.skin.GetStyle("Label");
+        textStyle.alignment = TextAnchor.MiddleRight;
+        textStyle.normal.textColor = Color.white;
+        int fontSize = GetFontSize(30);
+        textStyle.fontSize = fontSize;
+        textStyle.font = font;
+
+        textStyle.fontStyle = FontStyle.Bold;
+        DrawOutline(new Rect(x, y, width * .9f, height), message, textStyle);
+
+
+        GUI.DrawTexture(new Rect(x +width*.1f, y + height * .1f, width/4, height * .8f), narwhal, ScaleMode.StretchToFill, true, 10.0F);
 
 
 
